@@ -37,12 +37,13 @@ enum class EInputs : uint8_t
 	DPad9
 };
 
-typedef std::vector<std::vector<EInputs>> InputSequence;
+typedef std::vector<EInputs> FrameInputs;
+typedef std::vector<FrameInputs> FrameInputSequence;
 
 // Circular buffer containg frame input data from most recent to oldest.
-InputSequence inputBuffers(FGIBD_CONFIG_INPUT_BUFFER_COUNT);
+FrameInputSequence inputBuffers(FGIBD_CONFIG_INPUT_BUFFER_COUNT);
 
-void coutDpadKey(const std::vector<std::vector<EInputs>>& inputBuffers, EInputs input, HANDLE hConsole)
+void PrintInputBufferKey(const std::vector<std::vector<EInputs>>& inputBuffers, EInputs input, HANDLE hConsole)
 {
 	if (std::count(inputBuffers[0].begin(), inputBuffers[0].end(), input)) { SetConsoleTextAttribute(hConsole, 12); std::cout << "1"; }
 	else if (std::count(inputBuffers[1].begin(), inputBuffers[1].end(), input)) { SetConsoleTextAttribute(hConsole, 13); std::cout << "2"; }
@@ -57,6 +58,19 @@ void coutDpadKey(const std::vector<std::vector<EInputs>>& inputBuffers, EInputs 
 	SetConsoleTextAttribute(hConsole, 7);
 }
 
+bool FrameInputsIncludes(const FrameInputs& includes, const FrameInputs& included)
+{
+	for (EInputs input : included)
+	{
+		if (std::find(includes.begin(), includes.end(), input) == includes.end())
+		{
+			return false;
+		}
+	}
+
+	return true;
+}
+
 void FlushInputBuffers()
 {
 	for (std::vector<EInputs>& frameInputs : inputBuffers)
@@ -65,63 +79,63 @@ void FlushInputBuffers()
 	}
 }
 
-bool IsSequenceInInputBuffer(const InputSequence& inputSequence)
+bool IsSequenceInInputBuffer(const FrameInputSequence& inputSequence)
 {
-	/*for (size_t i = 0; i < inputBuffers.size(); i++)
-	{
-		// If we are out of the move input sequence without a fail, the move is succeeded.
-		if (i >= inputSequence.size()) { return true; }
-
-		for (EInputs sequenceInput : inputSequence[inputSequence.size() - 1 - i])
-		{
-			// If the input is not pressed, the move is failed.
-			if (!std::count(inputBuffers[i].begin(), inputBuffers[i].end(), sequenceInput))
-			{
-				return false;
-			}
-		}
-	}*/
-
-	// Iterate through the input buffers, starting with the current frame and going back in time, and check if the inputs match inputSequence.
-	uint8_t currentFrame = 0;
+	// Find starting indecies.
+	std::vector<size_t> startingIndecies;
 	for (size_t i = 0; i < inputBuffers.size(); i++)
 	{
-		// If the number of correct frames is equal to the number of frames in the sequence, the sequence was correctly performed.
-		if (currentFrame >= inputSequence.size())
+		if (FrameInputsIncludes(inputBuffers[i], inputSequence[0]))
 		{
-			return true;
+			startingIndecies.push_back(i);
+		}
+	}
+
+	// Check all the starting indices for the input sequence
+	for (size_t startingIndex : startingIndecies)
+	{
+		// Check if the input sequence even fits from the starting index to the current frame, if no, continue early
+		if (startingIndex + inputSequence.size() > inputBuffers.size())
+		{
+			continue;
 		}
 
-		// Loop over the current frame, if it matches the current frame, or the frame before it, in the input sequence, continue, if not, the sequence was incorrectly performed.
-		for (EInputs input : inputSequence[inputSequence.size() - 1 - currentFrame])
+		// Reverse iterate towards the current frame
+		uint8_t currentFrame = 0;
+		for (int i = startingIndex; i >= 0; i--)
 		{
-			if (std::count(inputBuffers[i].begin(), inputBuffers[i].end(), input) > 0)
+			// If the number of correct frames is equal to the number of frames in the sequence, the sequence was correctly performed.
+			if (currentFrame >= inputSequence.size())
+			{
+				return true;
+			}
+
+			// Loop over the current frame, if it matches the current frame, or the frame before it, in the input sequence, continue, if not, the sequence was incorrectly performed.
+			if (FrameInputsIncludes(inputBuffers[i], inputSequence[currentFrame]))
 			{
 				currentFrame++;
 				continue;
 			}
 			else
 			{
-				for (EInputs input2 : inputSequence[inputSequence.size() - 1 - currentFrame])
+				if (i > 0 && FrameInputsIncludes(inputBuffers[i - 1], inputSequence[currentFrame]))
 				{
-					if (i > 0 && std::count(inputBuffers[i-1].begin(), inputBuffers[i-1].end(), input2) > 0)
-					{
-						continue;
-					}
-					else
-					{
-						return false;
-					}
+					continue;
+				}
+				else
+				{
+					return false;
 				}
 			}
 		}
-
 	}
 
+	std::cout << "this happended 2";
+	
 	return false;
 }
 
-bool TryPerformMove(const InputSequence& inputSequence)
+bool TryPerformMove(const FrameInputSequence& inputSequence)
 {
 	if (IsSequenceInInputBuffer(inputSequence))
 	{
@@ -142,8 +156,8 @@ int main(int argc, char* argv[])
 	}
 
 	// Moves
-	InputSequence quaterCircleForwardSlashInputSequence = { { EInputs::DPad5 }, { EInputs::DPad2 }, { EInputs::DPad3 } };
-	InputSequence quaterCircleBackwardSlashInputSequence = { { EInputs::DPad5 }, { EInputs::DPad2 }, { EInputs::DPad1 }, { EInputs::DPad4, EInputs::Slash } };
+	FrameInputSequence quaterCircleForwardSlashInputSequence = { { EInputs::DPad5 }, { EInputs::DPad2 }, { EInputs::DPad3 }, { EInputs::DPad6, EInputs::Slash } };
+	FrameInputSequence quaterCircleBackwardSlashInputSequence = { { EInputs::DPad5 }, { EInputs::DPad2 }, { EInputs::DPad1 }, { EInputs::DPad4, EInputs::Slash } };
 
 	// Console handle used for console input widget.
 	HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
@@ -209,27 +223,27 @@ int main(int argc, char* argv[])
 			// Print input info to console, this should be rendererd using openGL in the future.
 			{
 				system("cls");
-				coutDpadKey(inputBuffers, EInputs::DPad7, hConsole);
-				coutDpadKey(inputBuffers, EInputs::DPad8, hConsole);
-				coutDpadKey(inputBuffers, EInputs::DPad9, hConsole);
+				PrintInputBufferKey(inputBuffers, EInputs::DPad7, hConsole);
+				PrintInputBufferKey(inputBuffers, EInputs::DPad8, hConsole);
+				PrintInputBufferKey(inputBuffers, EInputs::DPad9, hConsole);
 				std::cout << "  P ";
 				std::cout << "  K ";
 				std::cout << "  HS";
 				std::cout << "  S ";
 				std::cout << "  D ";
 				std::cout << std::endl;
-				coutDpadKey(inputBuffers, EInputs::DPad4, hConsole);
-				coutDpadKey(inputBuffers, EInputs::DPad5, hConsole);
-				coutDpadKey(inputBuffers, EInputs::DPad6, hConsole);
-				std::cout << "  "; coutDpadKey(inputBuffers, EInputs::Punch, hConsole); std::cout << " ";
-				std::cout << "  "; coutDpadKey(inputBuffers, EInputs::Kick, hConsole); std::cout << " ";
-				std::cout << "  "; coutDpadKey(inputBuffers, EInputs::HeavySlash, hConsole); std::cout << " ";
-				std::cout << "  "; coutDpadKey(inputBuffers, EInputs::Slash, hConsole); std::cout << " ";
-				std::cout << "  "; coutDpadKey(inputBuffers, EInputs::Dust, hConsole); std::cout << " ";
+				PrintInputBufferKey(inputBuffers, EInputs::DPad4, hConsole);
+				PrintInputBufferKey(inputBuffers, EInputs::DPad5, hConsole);
+				PrintInputBufferKey(inputBuffers, EInputs::DPad6, hConsole);
+				std::cout << "  "; PrintInputBufferKey(inputBuffers, EInputs::Punch, hConsole); std::cout << " ";
+				std::cout << "  "; PrintInputBufferKey(inputBuffers, EInputs::Kick, hConsole); std::cout << " ";
+				std::cout << "  "; PrintInputBufferKey(inputBuffers, EInputs::HeavySlash, hConsole); std::cout << " ";
+				std::cout << "  "; PrintInputBufferKey(inputBuffers, EInputs::Slash, hConsole); std::cout << " ";
+				std::cout << "  "; PrintInputBufferKey(inputBuffers, EInputs::Dust, hConsole); std::cout << " ";
 				std::cout << std::endl;
-				coutDpadKey(inputBuffers, EInputs::DPad1, hConsole);
-				coutDpadKey(inputBuffers, EInputs::DPad2, hConsole);
-				coutDpadKey(inputBuffers, EInputs::DPad3, hConsole);
+				PrintInputBufferKey(inputBuffers, EInputs::DPad1, hConsole);
+				PrintInputBufferKey(inputBuffers, EInputs::DPad2, hConsole);
+				PrintInputBufferKey(inputBuffers, EInputs::DPad3, hConsole);
 			}
 
 			// Render stuff to the window.
