@@ -18,6 +18,11 @@
 
 enum class EInputs : uint8_t
 {
+	Punch,
+	Kick,
+	HeavySlash,
+	Slash,
+	Dust,
 	DPad1,
 	DPad2,
 	DPad3,
@@ -57,6 +62,7 @@ void coutDpadKey(const std::vector<std::vector<EInputs>>& inputBuffers, EInputs 
 	else if (std::count(inputBuffers[6].begin(), inputBuffers[6].end(), input)) { SetConsoleTextAttribute(hConsole, 18); std::cout << "7"; }
 	else if (std::count(inputBuffers[7].begin(), inputBuffers[7].end(), input)) { SetConsoleTextAttribute(hConsole, 19); std::cout << "8"; }
 	else { SetConsoleTextAttribute(hConsole, 7);  std::cout << "-"; }
+	SetConsoleTextAttribute(hConsole, 7);
 }
 
 int main(int argc, char* argv[])
@@ -70,12 +76,15 @@ int main(int argc, char* argv[])
 	SetConsoleTextAttribute(hConsole, 7);
 
 	GLFWwindow* window = glfwCreateWindow(640, 480, "Fighting Game Input Buffering Demo", NULL, NULL);
+	glfwMakeContextCurrent(window);
+	glfwDefaultWindowHints();
+	glfwShowWindow(window);
 
 	glfwSetKeyCallback(window, key_callback);
 	
 	const int inputBufferCount = 8;
 	std::vector<std::vector<EInputs>> inputBuffers(inputBufferCount);
-	float framerate = 8.0;
+	float framerate = 60.0;
 	double currentTime = glfwGetTime();
 	double lastTime = currentTime;
 	while (!glfwWindowShouldClose(window))
@@ -84,10 +93,8 @@ int main(int argc, char* argv[])
 
 		if (currentTime - lastTime >= 1.0 / framerate)
 		{
+			
 			lastTime = currentTime;
-
-			// Input stuff
-			glfwPollEvents();
 
 			int buttonCount;
 			const unsigned char* buttons = glfwGetJoystickButtons(GLFW_JOYSTICK_1, &buttonCount);
@@ -100,13 +107,12 @@ int main(int argc, char* argv[])
 
 				// Fill input buffer
 				inputBuffers[0].clear();
-				/*if (buttons[FGIBD_BUTTON_A] == GLFW_PRESS) { inputBuffers[0].push_back(FGIBD_BUTTON_A); }
-				if (buttons[FGIBD_BUTTON_B] == GLFW_PRESS) { inputBuffers[0].push_back(FGIBD_BUTTON_B); }
-				if (buttons[FGIBD_BUTTON_X] == GLFW_PRESS) { inputBuffers[0].push_back(FGIBD_BUTTON_X); }
-				if (buttons[FGIBD_BUTTON_Y] == GLFW_PRESS) { inputBuffers[0].push_back(FGIBD_BUTTON_Y); }
-				if (buttons[FGIBD_BUTTON_L1] == GLFW_PRESS) { inputBuffers[0].push_back(FGIBD_BUTTON_L1); }
-				if (buttons[FGIBD_BUTTON_R1] == GLFW_PRESS) { inputBuffers[0].push_back(FGIBD_BUTTON_R1); }*/
-
+				// Basic buttons
+				if (buttons[FGIBD_BUTTON_A] == GLFW_PRESS) { inputBuffers[0].push_back(EInputs::Punch); }
+				if (buttons[FGIBD_BUTTON_B] == GLFW_PRESS) { inputBuffers[0].push_back(EInputs::Kick); }
+				if (buttons[FGIBD_BUTTON_X] == GLFW_PRESS) { inputBuffers[0].push_back(EInputs::HeavySlash); }
+				if (buttons[FGIBD_BUTTON_Y] == GLFW_PRESS) { inputBuffers[0].push_back(EInputs::Slash); }
+				if (buttons[FGIBD_BUTTON_R1] == GLFW_PRESS) { inputBuffers[0].push_back(EInputs::Dust); }
 				// Dpad
 				if (buttons[FGIBD_DPAD_DOWN] == GLFW_PRESS && buttons[FGIBD_DPAD_LEFT] == GLFW_PRESS) { inputBuffers[0].push_back(EInputs::DPad1); }
 				else if (buttons[FGIBD_DPAD_DOWN] == GLFW_PRESS && buttons[FGIBD_DPAD_RIGHT] == GLFW_PRESS) { inputBuffers[0].push_back(EInputs::DPad3); }
@@ -122,108 +128,36 @@ int main(int argc, char* argv[])
 				coutDpadKey(inputBuffers, EInputs::DPad7, hConsole);
 				coutDpadKey(inputBuffers, EInputs::DPad8, hConsole);
 				coutDpadKey(inputBuffers, EInputs::DPad9, hConsole);
+				std::cout << "  P ";
+				std::cout << "  K ";
+				std::cout << "  HS";
+				std::cout << "  S ";
+				std::cout << "  D ";
 				std::cout << std::endl;
 				coutDpadKey(inputBuffers, EInputs::DPad4, hConsole);
 				coutDpadKey(inputBuffers, EInputs::DPad5, hConsole);
 				coutDpadKey(inputBuffers, EInputs::DPad6, hConsole);
+				std::cout << "  "; coutDpadKey(inputBuffers, EInputs::Punch, hConsole); std::cout << " ";
+				std::cout << "  "; coutDpadKey(inputBuffers, EInputs::Kick, hConsole); std::cout << " ";
+				std::cout << "  "; coutDpadKey(inputBuffers, EInputs::HeavySlash, hConsole); std::cout << " ";
+				std::cout << "  "; coutDpadKey(inputBuffers, EInputs::Slash, hConsole); std::cout << " ";
+				std::cout << "  "; coutDpadKey(inputBuffers, EInputs::Dust, hConsole); std::cout << " ";
 				std::cout << std::endl;
 				coutDpadKey(inputBuffers, EInputs::DPad1, hConsole);
 				coutDpadKey(inputBuffers, EInputs::DPad2, hConsole);
 				coutDpadKey(inputBuffers, EInputs::DPad3, hConsole);
-
-				// PLZ DONT JUDGE...
-				/*if (std::count(inputBuffers[0].begin(), inputBuffers[0].end(), FGIBD_DPAD_UP) && std::count(inputBuffers[0].begin(), inputBuffers[0].end(), FGIBD_DPAD_LEFT)) { SetConsoleTextAttribute(hConsole, 12); std::cout << "1"; }
-				else if (std::count(inputBuffers[1].begin(), inputBuffers[1].end(), FGIBD_DPAD_UP) && std::count(inputBuffers[0].begin(), inputBuffers[0].end(), FGIBD_DPAD_LEFT)) { SetConsoleTextAttribute(hConsole, 13); std::cout << "2"; }
-				else if (std::count(inputBuffers[2].begin(), inputBuffers[2].end(), FGIBD_DPAD_UP) && std::count(inputBuffers[0].begin(), inputBuffers[0].end(), FGIBD_DPAD_LEFT)) { SetConsoleTextAttribute(hConsole, 14); std::cout << "3"; }
-				else if (std::count(inputBuffers[3].begin(), inputBuffers[3].end(), FGIBD_DPAD_UP) && std::count(inputBuffers[0].begin(), inputBuffers[0].end(), FGIBD_DPAD_LEFT)) { SetConsoleTextAttribute(hConsole, 15); std::cout << "4"; }
-				else if (std::count(inputBuffers[4].begin(), inputBuffers[4].end(), FGIBD_DPAD_UP) && std::count(inputBuffers[0].begin(), inputBuffers[0].end(), FGIBD_DPAD_LEFT)) { SetConsoleTextAttribute(hConsole, 16); std::cout << "5"; }
-				else if (std::count(inputBuffers[5].begin(), inputBuffers[5].end(), FGIBD_DPAD_UP) && std::count(inputBuffers[0].begin(), inputBuffers[0].end(), FGIBD_DPAD_LEFT)) { SetConsoleTextAttribute(hConsole, 17); std::cout << "6"; }
-				else if (std::count(inputBuffers[6].begin(), inputBuffers[6].end(), FGIBD_DPAD_UP) && std::count(inputBuffers[0].begin(), inputBuffers[0].end(), FGIBD_DPAD_LEFT)) { SetConsoleTextAttribute(hConsole, 18); std::cout << "7"; }
-				else if (std::count(inputBuffers[7].begin(), inputBuffers[7].end(), FGIBD_DPAD_UP) && std::count(inputBuffers[0].begin(), inputBuffers[0].end(), FGIBD_DPAD_LEFT)) { SetConsoleTextAttribute(hConsole, 19); std::cout << "8"; }
-				else { SetConsoleTextAttribute(hConsole, 7); std::cout << "-"; }
-
-				if (std::count(inputBuffers[0].begin(), inputBuffers[0].end(), FGIBD_DPAD_UP)) { SetConsoleTextAttribute(hConsole, 12); std::cout << "1"; }
-				else if (std::count(inputBuffers[1].begin(), inputBuffers[1].end(), FGIBD_DPAD_UP)) { SetConsoleTextAttribute(hConsole, 13); std::cout << "2"; }
-				else if (std::count(inputBuffers[2].begin(), inputBuffers[2].end(), FGIBD_DPAD_UP)) { SetConsoleTextAttribute(hConsole, 14); std::cout << "3"; }
-				else if (std::count(inputBuffers[3].begin(), inputBuffers[3].end(), FGIBD_DPAD_UP)) { SetConsoleTextAttribute(hConsole, 15); std::cout << "4"; }
-				else if (std::count(inputBuffers[4].begin(), inputBuffers[4].end(), FGIBD_DPAD_UP)) { SetConsoleTextAttribute(hConsole, 16); std::cout << "5"; }
-				else if (std::count(inputBuffers[5].begin(), inputBuffers[5].end(), FGIBD_DPAD_UP)) { SetConsoleTextAttribute(hConsole, 17); std::cout << "6"; }
-				else if (std::count(inputBuffers[6].begin(), inputBuffers[6].end(), FGIBD_DPAD_UP)) { SetConsoleTextAttribute(hConsole, 18); std::cout << "7"; }
-				else if (std::count(inputBuffers[7].begin(), inputBuffers[7].end(), FGIBD_DPAD_UP)) { SetConsoleTextAttribute(hConsole, 19); std::cout << "8"; }
-				else { SetConsoleTextAttribute(hConsole, 7);  std::cout << "-"; }
-
-				if (std::count(inputBuffers[0].begin(), inputBuffers[0].end(), FGIBD_DPAD_UP) && std::count(inputBuffers[0].begin(), inputBuffers[0].end(), FGIBD_DPAD_RIGHT)) { SetConsoleTextAttribute(hConsole, 12); std::cout << "1"; }
-				else if (std::count(inputBuffers[1].begin(), inputBuffers[1].end(), FGIBD_DPAD_UP) && std::count(inputBuffers[0].begin(), inputBuffers[0].end(), FGIBD_DPAD_RIGHT)) { SetConsoleTextAttribute(hConsole, 13); std::cout << "2"; }
-				else if (std::count(inputBuffers[2].begin(), inputBuffers[2].end(), FGIBD_DPAD_UP) && std::count(inputBuffers[0].begin(), inputBuffers[0].end(), FGIBD_DPAD_RIGHT)) { SetConsoleTextAttribute(hConsole, 14); std::cout << "3"; }
-				else if (std::count(inputBuffers[3].begin(), inputBuffers[3].end(), FGIBD_DPAD_UP) && std::count(inputBuffers[0].begin(), inputBuffers[0].end(), FGIBD_DPAD_RIGHT)) { SetConsoleTextAttribute(hConsole, 15); std::cout << "4"; }
-				else if (std::count(inputBuffers[4].begin(), inputBuffers[4].end(), FGIBD_DPAD_UP) && std::count(inputBuffers[0].begin(), inputBuffers[0].end(), FGIBD_DPAD_RIGHT)) { SetConsoleTextAttribute(hConsole, 16); std::cout << "5"; }
-				else if (std::count(inputBuffers[5].begin(), inputBuffers[5].end(), FGIBD_DPAD_UP) && std::count(inputBuffers[0].begin(), inputBuffers[0].end(), FGIBD_DPAD_RIGHT)) { SetConsoleTextAttribute(hConsole, 17); std::cout << "6"; }
-				else if (std::count(inputBuffers[6].begin(), inputBuffers[6].end(), FGIBD_DPAD_UP) && std::count(inputBuffers[0].begin(), inputBuffers[0].end(), FGIBD_DPAD_RIGHT)) { SetConsoleTextAttribute(hConsole, 18); std::cout << "7"; }
-				else if (std::count(inputBuffers[7].begin(), inputBuffers[7].end(), FGIBD_DPAD_UP) && std::count(inputBuffers[0].begin(), inputBuffers[0].end(), FGIBD_DPAD_RIGHT)) { SetConsoleTextAttribute(hConsole, 19); std::cout << "8"; }
-				else { SetConsoleTextAttribute(hConsole, 7); std::cout << "-"; }
-				std::cout << std::endl;
-
-				if (std::count(inputBuffers[0].begin(), inputBuffers[0].end(), FGIBD_DPAD_LEFT)) { SetConsoleTextAttribute(hConsole, 12);std::cout << "1"; }
-				else if (std::count(inputBuffers[1].begin(), inputBuffers[1].end(), FGIBD_DPAD_LEFT)) { SetConsoleTextAttribute(hConsole, 13); std::cout << "2"; }
-				else if (std::count(inputBuffers[2].begin(), inputBuffers[2].end(), FGIBD_DPAD_LEFT)) { SetConsoleTextAttribute(hConsole, 14); std::cout << "3"; }
-				else if (std::count(inputBuffers[3].begin(), inputBuffers[3].end(), FGIBD_DPAD_LEFT)) { SetConsoleTextAttribute(hConsole, 15); std::cout << "4"; }
-				else if (std::count(inputBuffers[4].begin(), inputBuffers[4].end(), FGIBD_DPAD_LEFT)) { SetConsoleTextAttribute(hConsole, 16); std::cout << "5"; }
-				else if (std::count(inputBuffers[5].begin(), inputBuffers[5].end(), FGIBD_DPAD_LEFT)) { SetConsoleTextAttribute(hConsole, 17); std::cout << "6"; }
-				else if (std::count(inputBuffers[6].begin(), inputBuffers[6].end(), FGIBD_DPAD_LEFT)) { SetConsoleTextAttribute(hConsole, 18); std::cout << "7"; }
-				else if (std::count(inputBuffers[7].begin(), inputBuffers[7].end(), FGIBD_DPAD_LEFT)) { SetConsoleTextAttribute(hConsole, 19); std::cout << "8"; }
-				else { SetConsoleTextAttribute(hConsole, 7); std::cout << "-"; }
-				
-				if (inputBuffers[0].size() == 0) { SetConsoleTextAttribute(hConsole, 12); std::cout << "1"; }
-				else if (inputBuffers[0].size() == 0) { SetConsoleTextAttribute(hConsole, 13); std::cout << "2"; }
-				else if (inputBuffers[0].size() == 0) { SetConsoleTextAttribute(hConsole, 14); std::cout << "3"; }
-				else if (inputBuffers[0].size() == 0) { SetConsoleTextAttribute(hConsole, 15); std::cout << "4"; }
-				else if (inputBuffers[0].size() == 0) { SetConsoleTextAttribute(hConsole, 16); std::cout << "5"; }
-				else if (inputBuffers[0].size() == 0) { SetConsoleTextAttribute(hConsole, 17); std::cout << "6"; }
-				else if (inputBuffers[0].size() == 0) { SetConsoleTextAttribute(hConsole, 18); std::cout << "7"; }
-				else if (inputBuffers[0].size() == 0) { SetConsoleTextAttribute(hConsole, 19); std::cout << "8"; }
-				else { SetConsoleTextAttribute(hConsole, 7); std::cout << "-"; }
-
-				if (std::count(inputBuffers[0].begin(), inputBuffers[0].end(), FGIBD_DPAD_RIGHT)) { SetConsoleTextAttribute(hConsole, 12); std::cout << "1"; }
-				else if (std::count(inputBuffers[1].begin(), inputBuffers[1].end(), FGIBD_DPAD_RIGHT)) { SetConsoleTextAttribute(hConsole, 13); std::cout << "2"; }
-				else if (std::count(inputBuffers[2].begin(), inputBuffers[2].end(), FGIBD_DPAD_RIGHT)) { SetConsoleTextAttribute(hConsole, 14); std::cout << "3"; }
-				else if (std::count(inputBuffers[3].begin(), inputBuffers[3].end(), FGIBD_DPAD_RIGHT)) { SetConsoleTextAttribute(hConsole, 15); std::cout << "4"; }
-				else if (std::count(inputBuffers[4].begin(), inputBuffers[4].end(), FGIBD_DPAD_RIGHT)) { SetConsoleTextAttribute(hConsole, 16); std::cout << "5"; }
-				else if (std::count(inputBuffers[5].begin(), inputBuffers[5].end(), FGIBD_DPAD_RIGHT)) { SetConsoleTextAttribute(hConsole, 17); std::cout << "6"; }
-				else if (std::count(inputBuffers[6].begin(), inputBuffers[6].end(), FGIBD_DPAD_RIGHT)) { SetConsoleTextAttribute(hConsole, 18); std::cout << "7"; }
-				else if (std::count(inputBuffers[7].begin(), inputBuffers[7].end(), FGIBD_DPAD_RIGHT)) { SetConsoleTextAttribute(hConsole, 19); std::cout << "8"; }
-				else { SetConsoleTextAttribute(hConsole, 7); std::cout << "-"; }
-				std::cout << std::endl;
-
-				if (std::count(inputBuffers[0].begin(), inputBuffers[0].end(), FGIBD_DPAD_DOWN) && std::count(inputBuffers[0].begin(), inputBuffers[0].end(), FGIBD_DPAD_LEFT)) { SetConsoleTextAttribute(hConsole, 12); std::cout << "1"; }
-				else if (std::count(inputBuffers[1].begin(), inputBuffers[1].end(), FGIBD_DPAD_DOWN) && std::count(inputBuffers[0].begin(), inputBuffers[0].end(), FGIBD_DPAD_LEFT)) { SetConsoleTextAttribute(hConsole, 13); std::cout << "2"; }
-				else if (std::count(inputBuffers[2].begin(), inputBuffers[2].end(), FGIBD_DPAD_DOWN) && std::count(inputBuffers[0].begin(), inputBuffers[0].end(), FGIBD_DPAD_LEFT)) { SetConsoleTextAttribute(hConsole, 14); std::cout << "3"; }
-				else if (std::count(inputBuffers[3].begin(), inputBuffers[3].end(), FGIBD_DPAD_DOWN) && std::count(inputBuffers[0].begin(), inputBuffers[0].end(), FGIBD_DPAD_LEFT)) { SetConsoleTextAttribute(hConsole, 15); std::cout << "4"; }
-				else if (std::count(inputBuffers[4].begin(), inputBuffers[4].end(), FGIBD_DPAD_DOWN) && std::count(inputBuffers[0].begin(), inputBuffers[0].end(), FGIBD_DPAD_LEFT)) { SetConsoleTextAttribute(hConsole, 16); std::cout << "5"; }
-				else if (std::count(inputBuffers[5].begin(), inputBuffers[5].end(), FGIBD_DPAD_DOWN) && std::count(inputBuffers[0].begin(), inputBuffers[0].end(), FGIBD_DPAD_LEFT)) { SetConsoleTextAttribute(hConsole, 17); std::cout << "6"; }
-				else if (std::count(inputBuffers[6].begin(), inputBuffers[6].end(), FGIBD_DPAD_DOWN) && std::count(inputBuffers[0].begin(), inputBuffers[0].end(), FGIBD_DPAD_LEFT)) { SetConsoleTextAttribute(hConsole, 18); std::cout << "7"; }
-				else if (std::count(inputBuffers[7].begin(), inputBuffers[7].end(), FGIBD_DPAD_DOWN) && std::count(inputBuffers[0].begin(), inputBuffers[0].end(), FGIBD_DPAD_LEFT)) { SetConsoleTextAttribute(hConsole, 19); std::cout << "8"; }
-				else { SetConsoleTextAttribute(hConsole, 7); std::cout << "-"; }
-
-				if (std::count(inputBuffers[0].begin(), inputBuffers[0].end(), FGIBD_DPAD_DOWN)) { SetConsoleTextAttribute(hConsole, 12); std::cout << "1"; }
-				else if (std::count(inputBuffers[1].begin(), inputBuffers[1].end(), FGIBD_DPAD_DOWN)) { SetConsoleTextAttribute(hConsole, 13); std::cout << "2"; }
-				else if (std::count(inputBuffers[2].begin(), inputBuffers[2].end(), FGIBD_DPAD_DOWN)) { SetConsoleTextAttribute(hConsole, 14); std::cout << "3"; }
-				else if (std::count(inputBuffers[3].begin(), inputBuffers[3].end(), FGIBD_DPAD_DOWN)) { SetConsoleTextAttribute(hConsole, 15); std::cout << "4"; }
-				else if (std::count(inputBuffers[4].begin(), inputBuffers[4].end(), FGIBD_DPAD_DOWN)) { SetConsoleTextAttribute(hConsole, 16); std::cout << "5"; }
-				else if (std::count(inputBuffers[5].begin(), inputBuffers[5].end(), FGIBD_DPAD_DOWN)) { SetConsoleTextAttribute(hConsole, 17); std::cout << "6"; }
-				else if (std::count(inputBuffers[6].begin(), inputBuffers[6].end(), FGIBD_DPAD_DOWN)) { SetConsoleTextAttribute(hConsole, 18); std::cout << "7"; }
-				else if (std::count(inputBuffers[7].begin(), inputBuffers[7].end(), FGIBD_DPAD_DOWN)) { SetConsoleTextAttribute(hConsole, 19); std::cout << "8"; }
-				else { SetConsoleTextAttribute(hConsole, 7); std::cout << "-"; }
-				
-				if (std::count(inputBuffers[0].begin(), inputBuffers[0].end(), FGIBD_DPAD_DOWN) && std::count(inputBuffers[0].begin(), inputBuffers[0].end(), FGIBD_DPAD_RIGHT)) { SetConsoleTextAttribute(hConsole, 12); std::cout << "1"; }
-				else if (std::count(inputBuffers[1].begin(), inputBuffers[1].end(), FGIBD_DPAD_DOWN) && std::count(inputBuffers[0].begin(), inputBuffers[0].end(), FGIBD_DPAD_RIGHT)) { SetConsoleTextAttribute(hConsole, 13); std::cout << "2"; }
-				else if (std::count(inputBuffers[2].begin(), inputBuffers[2].end(), FGIBD_DPAD_DOWN) && std::count(inputBuffers[0].begin(), inputBuffers[0].end(), FGIBD_DPAD_RIGHT)) { SetConsoleTextAttribute(hConsole, 14); std::cout << "3"; }
-				else if (std::count(inputBuffers[3].begin(), inputBuffers[3].end(), FGIBD_DPAD_DOWN) && std::count(inputBuffers[0].begin(), inputBuffers[0].end(), FGIBD_DPAD_RIGHT)) { SetConsoleTextAttribute(hConsole, 15); std::cout << "4"; }
-				else if (std::count(inputBuffers[4].begin(), inputBuffers[4].end(), FGIBD_DPAD_DOWN) && std::count(inputBuffers[0].begin(), inputBuffers[0].end(), FGIBD_DPAD_RIGHT)) { SetConsoleTextAttribute(hConsole, 16); std::cout << "5"; }
-				else if (std::count(inputBuffers[5].begin(), inputBuffers[5].end(), FGIBD_DPAD_DOWN) && std::count(inputBuffers[0].begin(), inputBuffers[0].end(), FGIBD_DPAD_RIGHT)) { SetConsoleTextAttribute(hConsole, 17); std::cout << "6"; }
-				else if (std::count(inputBuffers[6].begin(), inputBuffers[6].end(), FGIBD_DPAD_DOWN) && std::count(inputBuffers[0].begin(), inputBuffers[0].end(), FGIBD_DPAD_RIGHT)) { SetConsoleTextAttribute(hConsole, 18); std::cout << "7"; }
-				else if (std::count(inputBuffers[7].begin(), inputBuffers[7].end(), FGIBD_DPAD_DOWN) && std::count(inputBuffers[0].begin(), inputBuffers[0].end(), FGIBD_DPAD_RIGHT)) { SetConsoleTextAttribute(hConsole, 19); std::cout << "8"; }
-				else { SetConsoleTextAttribute(hConsole, 7); std::cout << "-"; }*/
 			}
+
+			// Optimal quater circle forward
+			if (std::count(inputBuffers[0].begin(), inputBuffers[0].end(), EInputs::Slash) &&
+				std::count(inputBuffers[0].begin(), inputBuffers[0].end(), EInputs::DPad6) &&
+				std::count(inputBuffers[1].begin(), inputBuffers[1].end(), EInputs::DPad3) &&
+				std::count(inputBuffers[2].begin(), inputBuffers[2].end(), EInputs::DPad2) &&
+				std::count(inputBuffers[3].begin(), inputBuffers[3].end(), EInputs::DPad5)) { glClearColor(0.0f, 1.0f, 0.0f, 1.0f); }
+			else { glClearColor(0.0f, 0.0f, 0.0f, 1.0f); }
+			glClear(GL_COLOR_BUFFER_BIT); 
+			glfwSwapBuffers(window);
+			glfwPollEvents();
 		}
 	}
 
