@@ -1,6 +1,19 @@
 #include <iostream>
 #include <array>
+#include <algorithm>
+#include <vector>
 #include <GLFW/glfw3.h>
+
+#define FGIBD_BUTTON_A 0
+#define FGIBD_BUTTON_B 1
+#define FGIBD_BUTTON_X 2
+#define FGIBD_BUTTON_Y 3
+#define FGIBD_BUTTON_L1 4
+#define FGIBD_BUTTON_R1 5
+#define FGIBD_DPAD_UP 14
+#define FGIBD_DPAD_RIGHT 15
+#define FGIBD_DPAD_DOWN 16
+#define FGIBD_DPAD_LEFT 17
 
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
@@ -29,7 +42,9 @@ int main(int argc, char* argv[])
 	GLFWwindow* window = glfwCreateWindow(640, 480, "Fighting Game Input Buffering Demo", NULL, NULL);
 
 	glfwSetKeyCallback(window, key_callback);
-
+	
+	const int inputBufferCount = 8;
+	std::vector<std::vector<int>> inputBuffers(inputBufferCount);
 	float framerate = 60.0;
 	double currentTime = glfwGetTime();
 	double lastTime = currentTime;
@@ -43,23 +58,40 @@ int main(int argc, char* argv[])
 
 			// Input stuff
 			glfwPollEvents();
-			
+
+			int buttonCount;
+			const unsigned char* buttons = glfwGetJoystickButtons(GLFW_JOYSTICK_1, &buttonCount);
+
 			int present = glfwJoystickPresent(GLFW_JOYSTICK_1);
 			if (present == 1)
 			{
-				int buttonCount;
-				const unsigned char* buttons = glfwGetJoystickButtons(GLFW_JOYSTICK_1, &buttonCount);
+				// Shift back array, remove last element
+				std::rotate(inputBuffers.begin(), inputBuffers.begin() + 1, inputBuffers.end());
 
-				if (buttonCount >= 0 && buttons[0] == GLFW_PRESS) { std::cout << "A" << std::endl; }
-				else if (buttonCount >= 1 && buttons[1] == GLFW_PRESS) { std::cout << "B" << std::endl; }
-				else if (buttonCount >= 2 && buttons[2] == GLFW_PRESS) { std::cout << "X" << std::endl; }
-				else if (buttonCount >= 3 && buttons[3] == GLFW_PRESS) { std::cout << "Y" << std::endl; }
-				else if (buttonCount >= 4 && buttons[4] == GLFW_PRESS) { std::cout << "L1" << std::endl; }
-				else if (buttonCount >= 5 && buttons[5] == GLFW_PRESS) { std::cout << "R1" << std::endl; }
-				else if (buttonCount >= 14 && buttons[14] == GLFW_PRESS) { std::cout << "UP" << std::endl; }
-				else if (buttonCount >= 15 && buttons[15] == GLFW_PRESS) { std::cout << "RIGHT" << std::endl; }
-				else if (buttonCount >= 16 && buttons[16] == GLFW_PRESS) { std::cout << "DOWN" << std::endl; }
-				else if (buttonCount >= 17 && buttons[17] == GLFW_PRESS) { std::cout << "LEFT" << std::endl; }
+				// Fill input buffer
+				inputBuffers[0].clear();
+				if (buttons[FGIBD_BUTTON_A] == GLFW_PRESS) { inputBuffers[0].push_back(FGIBD_BUTTON_A); }
+				if (buttons[FGIBD_BUTTON_B] == GLFW_PRESS) { inputBuffers[0].push_back(FGIBD_BUTTON_B); }
+				if (buttons[FGIBD_BUTTON_X] == GLFW_PRESS) { inputBuffers[0].push_back(FGIBD_BUTTON_X); }
+				if (buttons[FGIBD_BUTTON_Y] == GLFW_PRESS) { inputBuffers[0].push_back(FGIBD_BUTTON_Y); }
+				if (buttons[FGIBD_BUTTON_L1] == GLFW_PRESS) { inputBuffers[0].push_back(FGIBD_BUTTON_L1); }
+				if (buttons[FGIBD_BUTTON_R1] == GLFW_PRESS) { inputBuffers[0].push_back(FGIBD_BUTTON_R1); }
+				if (buttons[FGIBD_DPAD_UP] == GLFW_PRESS) { inputBuffers[0].push_back(FGIBD_DPAD_UP); }
+				if (buttons[FGIBD_DPAD_RIGHT] == GLFW_PRESS) { inputBuffers[0].push_back(FGIBD_DPAD_RIGHT); }
+				if (buttons[FGIBD_DPAD_DOWN] == GLFW_PRESS) { inputBuffers[0].push_back(FGIBD_DPAD_DOWN); }
+				if (buttons[FGIBD_DPAD_LEFT] == GLFW_PRESS) { inputBuffers[0].push_back(FGIBD_DPAD_LEFT); }
+				
+				// Debug print
+				for (std::vector<int> inputBuffer : inputBuffers)
+				{
+					std::cout << " - ";
+					for (int key : inputBuffer)
+					{
+						std::cout << key;
+					}
+					std::cout << std::endl;
+				}
+				std::cout << std::endl;
 			}
 		}
 	}
