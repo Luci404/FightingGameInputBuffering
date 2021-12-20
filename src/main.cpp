@@ -17,6 +17,8 @@
 #define FGIBD_DPAD_DOWN 16
 #define FGIBD_DPAD_LEFT 17
 
+#define FGIBD_CONFIG_INPUT_BUFFER_COUNT 30
+
 enum class EInputs : uint8_t
 {
 	Punch,
@@ -35,28 +37,10 @@ enum class EInputs : uint8_t
 	DPad9
 };
 
-struct Move
-{
-public:
-	std::vector<std::vector<EInputs>> InputSequence;
-};
+typedef std::vector<std::vector<EInputs>> InputSequence;
 
-void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
-{
-	std::cout << key << std::endl;
-}
-
-void joystick_callback(int jid, int event)
-{
-	if (event == GLFW_CONNECTED)
-	{
-		std::cout << "joystick was connected" << std::endl;
-	}
-	else if (event == GLFW_DISCONNECTED)
-	{
-		std::cout << "joystick was disconnected" << std::endl;
-	}
-}
+// Circular buffer containg frame input data from most recent to oldest.
+InputSequence inputBuffers(FGIBD_CONFIG_INPUT_BUFFER_COUNT);
 
 void coutDpadKey(const std::vector<std::vector<EInputs>>& inputBuffers, EInputs input, HANDLE hConsole)
 {
@@ -73,14 +57,22 @@ void coutDpadKey(const std::vector<std::vector<EInputs>>& inputBuffers, EInputs 
 	SetConsoleTextAttribute(hConsole, 7);
 }
 
-bool moveDown(const std::vector<std::vector<EInputs>>& inputBuffers, const Move& move)
+void FlushInputBuffers()
 {
-	for (size_t i = 0; i < inputBuffers.size(); i++)
+	for (std::vector<EInputs>& frameInputs : inputBuffers)
+	{
+		frameInputs = {};
+	}
+}
+
+bool IsSequenceInInputBuffer(const InputSequence& inputSequence)
+{
+	/*for (size_t i = 0; i < inputBuffers.size(); i++)
 	{
 		// If we are out of the move input sequence without a fail, the move is succeeded.
-		if (i >= move.InputSequence.size()) { return true; }
-		
-		for (EInputs sequenceInput : move.InputSequence[move.InputSequence.size() - 1 - i])
+		if (i >= inputSequence.size()) { return true; }
+
+		for (EInputs sequenceInput : inputSequence[inputSequence.size() - 1 - i])
 		{
 			// If the input is not pressed, the move is failed.
 			if (!std::count(inputBuffers[i].begin(), inputBuffers[i].end(), sequenceInput))
@@ -88,9 +80,58 @@ bool moveDown(const std::vector<std::vector<EInputs>>& inputBuffers, const Move&
 				return false;
 			}
 		}
+	}*/
+
+	// Iterate through the input buffers, starting with the current frame and going back in time, and check if the inputs match inputSequence.
+	uint8_t currentFrame = 0;
+	for (size_t i = 0; i < inputBuffers.size(); i++)
+	{
+		// If the number of correct frames is equal to the number of frames in the sequence, the sequence was correctly performed.
+		if (currentFrame >= inputSequence.size())
+		{
+			return true;
+		}
+
+		// Loop over the current frame, if it matches the current frame, or the frame before it, in the input sequence, continue, if not, the sequence was incorrectly performed.
+		for (EInputs input : inputSequence[inputSequence.size() - 1 - currentFrame])
+		{
+			if (std::count(inputBuffers[i].begin(), inputBuffers[i].end(), input) > 0)
+			{
+				currentFrame++;
+				continue;
+			}
+			else
+			{
+				for (EInputs input2 : inputSequence[inputSequence.size() - 1 - currentFrame])
+				{
+					if (i > 0 && std::count(inputBuffers[i-1].begin(), inputBuffers[i-1].end(), input2) > 0)
+					{
+						continue;
+					}
+					else
+					{
+						return false;
+					}
+				}
+			}
+		}
+
 	}
 
 	return false;
+}
+
+bool TryPerformMove(const InputSequence& inputSequence)
+{
+	if (IsSequenceInInputBuffer(inputSequence))
+	{
+		FlushInputBuffers();
+		return true;
+	}
+	else
+	{
+		return false;
+	}
 }
 
 int main(int argc, char* argv[])
@@ -100,62 +141,73 @@ int main(int argc, char* argv[])
 		return -1;
 	}
 
-	Move quaterCircleSlash;
-	quaterCircleSlash.InputSequence = { { EInputs::DPad2 }, { EInputs::DPad3 }, { EInputs::DPad6, EInputs::Slash } };
-	//quaterCircleSlash.InputSequence.push_back({ EInputs::DPad6, EInputs::Slash });
+	// Moves
+	InputSequence quaterCircleForwardSlashInputSequence = { { EInputs::DPad5 }, { EInputs::DPad2 }, { EInputs::DPad3 } };
+	InputSequence quaterCircleBackwardSlashInputSequence = { { EInputs::DPad5 }, { EInputs::DPad2 }, { EInputs::DPad1 }, { EInputs::DPad4, EInputs::Slash } };
 
+	// Console handle used for console input widget.
 	HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
 	SetConsoleTextAttribute(hConsole, 7);
 
+	// GLFW stuff
 	GLFWwindow* window = glfwCreateWindow(640, 480, "Fighting Game Input Buffering Demo", NULL, NULL);
 	glfwMakeContextCurrent(window);
 	glfwDefaultWindowHints();
 	glfwShowWindow(window);
 
-	glfwSetKeyCallback(window, key_callback);
-	
-	const int inputBufferCount = 8;
-	std::vector<std::vector<EInputs>> inputBuffers(inputBufferCount);
+	// Framerate limit data
 	float framerate = 60.0;
 	double currentTime = glfwGetTime();
 	double lastTime = currentTime;
+
+	// Run loop
 	while (!glfwWindowShouldClose(window))
 	{
+		// Framerate limit, the thread should ideally be put to sleep; but an if statement work for now...
 		currentTime = glfwGetTime();
-
 		if (currentTime - lastTime >= 1.0 / framerate)
 		{
-			
 			lastTime = currentTime;
 
-			int buttonCount;
-			const unsigned char* buttons = glfwGetJoystickButtons(GLFW_JOYSTICK_1, &buttonCount);
-
-			int present = glfwJoystickPresent(GLFW_JOYSTICK_1);
-			if (present == 1)
+			// Handle Inputs
 			{
-				// Shift back array, remove last element
-				std::rotate(inputBuffers.begin(), inputBuffers.begin() + (inputBufferCount - 1), inputBuffers.end());
+				glfwPollEvents();
 
-				// Fill input buffer
-				inputBuffers[0].clear();
-				// Basic buttons
-				if (buttons[FGIBD_BUTTON_A] == GLFW_PRESS) { inputBuffers[0].push_back(EInputs::Punch); }
-				if (buttons[FGIBD_BUTTON_B] == GLFW_PRESS) { inputBuffers[0].push_back(EInputs::Kick); }
-				if (buttons[FGIBD_BUTTON_X] == GLFW_PRESS) { inputBuffers[0].push_back(EInputs::HeavySlash); }
-				if (buttons[FGIBD_BUTTON_Y] == GLFW_PRESS) { inputBuffers[0].push_back(EInputs::Slash); }
-				if (buttons[FGIBD_BUTTON_R1] == GLFW_PRESS) { inputBuffers[0].push_back(EInputs::Dust); }
-				// Dpad
-				if (buttons[FGIBD_DPAD_DOWN] == GLFW_PRESS && buttons[FGIBD_DPAD_LEFT] == GLFW_PRESS) { inputBuffers[0].push_back(EInputs::DPad1); }
-				else if (buttons[FGIBD_DPAD_DOWN] == GLFW_PRESS && buttons[FGIBD_DPAD_RIGHT] == GLFW_PRESS) { inputBuffers[0].push_back(EInputs::DPad3); }
-				else if (buttons[FGIBD_DPAD_UP] == GLFW_PRESS && buttons[FGIBD_DPAD_LEFT] == GLFW_PRESS) { inputBuffers[0].push_back(EInputs::DPad7); }
-				else if (buttons[FGIBD_DPAD_UP] == GLFW_PRESS && buttons[FGIBD_DPAD_RIGHT] == GLFW_PRESS) { inputBuffers[0].push_back(EInputs::DPad9); }
-				else if (buttons[FGIBD_DPAD_DOWN] == GLFW_PRESS) { inputBuffers[0].push_back(EInputs::DPad2); }
-				else if (buttons[FGIBD_DPAD_LEFT] == GLFW_PRESS) { inputBuffers[0].push_back(EInputs::DPad4); }
-				else if (buttons[FGIBD_DPAD_RIGHT] == GLFW_PRESS) { inputBuffers[0].push_back(EInputs::DPad6); }
-				else if (buttons[FGIBD_DPAD_UP] == GLFW_PRESS) { inputBuffers[0].push_back(EInputs::DPad8); }
-				else { inputBuffers[0].push_back(EInputs::DPad5); }
+				int present = glfwJoystickPresent(GLFW_JOYSTICK_1);
+				if (present == 1)
+				{
+					// Get pressed buttons from GLFW
+					int buttonCount;
+					const unsigned char* buttons = glfwGetJoystickButtons(GLFW_JOYSTICK_1, &buttonCount);
 
+					// Shift the array; this is not the optimal solution, it should be using some sort of current index variable that is incremented each frame, but this is easier... soooooo....
+					std::rotate(inputBuffers.begin(), inputBuffers.begin() + (inputBuffers.size() - 1), inputBuffers.end());
+
+					// Clear up current frame history, since the buffers are reused
+					inputBuffers[0].clear();
+
+					// Add buttons inputs
+					if (buttons[FGIBD_BUTTON_A] == GLFW_PRESS) { inputBuffers[0].push_back(EInputs::Punch); }
+					if (buttons[FGIBD_BUTTON_B] == GLFW_PRESS) { inputBuffers[0].push_back(EInputs::Kick); }
+					if (buttons[FGIBD_BUTTON_X] == GLFW_PRESS) { inputBuffers[0].push_back(EInputs::HeavySlash); }
+					if (buttons[FGIBD_BUTTON_Y] == GLFW_PRESS) { inputBuffers[0].push_back(EInputs::Slash); }
+					if (buttons[FGIBD_BUTTON_R1] == GLFW_PRESS) { inputBuffers[0].push_back(EInputs::Dust); }
+
+					// Add dpad inputs
+					if (buttons[FGIBD_DPAD_DOWN] == GLFW_PRESS && buttons[FGIBD_DPAD_LEFT] == GLFW_PRESS) { inputBuffers[0].push_back(EInputs::DPad1); }
+					else if (buttons[FGIBD_DPAD_DOWN] == GLFW_PRESS && buttons[FGIBD_DPAD_RIGHT] == GLFW_PRESS) { inputBuffers[0].push_back(EInputs::DPad3); }
+					else if (buttons[FGIBD_DPAD_UP] == GLFW_PRESS && buttons[FGIBD_DPAD_LEFT] == GLFW_PRESS) { inputBuffers[0].push_back(EInputs::DPad7); }
+					else if (buttons[FGIBD_DPAD_UP] == GLFW_PRESS && buttons[FGIBD_DPAD_RIGHT] == GLFW_PRESS) { inputBuffers[0].push_back(EInputs::DPad9); }
+					else if (buttons[FGIBD_DPAD_DOWN] == GLFW_PRESS) { inputBuffers[0].push_back(EInputs::DPad2); }
+					else if (buttons[FGIBD_DPAD_LEFT] == GLFW_PRESS) { inputBuffers[0].push_back(EInputs::DPad4); }
+					else if (buttons[FGIBD_DPAD_RIGHT] == GLFW_PRESS) { inputBuffers[0].push_back(EInputs::DPad6); }
+					else if (buttons[FGIBD_DPAD_UP] == GLFW_PRESS) { inputBuffers[0].push_back(EInputs::DPad8); }
+					else { inputBuffers[0].push_back(EInputs::DPad5); }
+				}
+			}
+
+			// Print input info to console, this should be rendererd using openGL in the future.
+			{
 				system("cls");
 				coutDpadKey(inputBuffers, EInputs::DPad7, hConsole);
 				coutDpadKey(inputBuffers, EInputs::DPad8, hConsole);
@@ -180,17 +232,14 @@ int main(int argc, char* argv[])
 				coutDpadKey(inputBuffers, EInputs::DPad3, hConsole);
 			}
 
-			// Optimal quater circle forward
-			/*if (std::count(inputBuffers[0].begin(), inputBuffers[0].end(), EInputs::Slash) &&
-				std::count(inputBuffers[0].begin(), inputBuffers[0].end(), EInputs::DPad6) &&
-				std::count(inputBuffers[1].begin(), inputBuffers[1].end(), EInputs::DPad3) &&
-				std::count(inputBuffers[2].begin(), inputBuffers[2].end(), EInputs::DPad2) &&
-				std::count(inputBuffers[3].begin(), inputBuffers[3].end(), EInputs::DPad5)) { glClearColor(0.0f, 1.0f, 0.0f, 1.0f); }*/
-			if (moveDown(inputBuffers, quaterCircleSlash)) { glClearColor(0.0f, 1.0f, 0.0f, 1.0f); }
-			else { glClearColor(0.0f, 0.0f, 0.0f, 1.0f); }
-			glClear(GL_COLOR_BUFFER_BIT); 
-			glfwSwapBuffers(window);
-			glfwPollEvents();
+			// Render stuff to the window.
+			{
+				if (TryPerformMove(quaterCircleForwardSlashInputSequence)) { glClearColor(0.0f, 1.0f, 0.0f, 1.0f); }
+				else if (TryPerformMove(quaterCircleBackwardSlashInputSequence)) { glClearColor(0.0f, 1.0f, 0.0f, 1.0f); }
+				else { glClearColor(0.0f, 0.0f, 0.0f, 1.0f); }
+				glClear(GL_COLOR_BUFFER_BIT);
+				glfwSwapBuffers(window);
+			}
 		}
 	}
 
