@@ -4,6 +4,7 @@
 #include <vector>
 #include <GLFW/glfw3.h>
 #include <Windows.h>
+#include <string>
 
 #define FGIBD_BUTTON_A 0
 #define FGIBD_BUTTON_B 1
@@ -34,6 +35,12 @@ enum class EInputs : uint8_t
 	DPad9
 };
 
+struct Move
+{
+public:
+	std::vector<std::vector<EInputs>> InputSequence;
+};
+
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
 	std::cout << key << std::endl;
@@ -62,7 +69,28 @@ void coutDpadKey(const std::vector<std::vector<EInputs>>& inputBuffers, EInputs 
 	else if (std::count(inputBuffers[6].begin(), inputBuffers[6].end(), input)) { SetConsoleTextAttribute(hConsole, 18); std::cout << "7"; }
 	else if (std::count(inputBuffers[7].begin(), inputBuffers[7].end(), input)) { SetConsoleTextAttribute(hConsole, 19); std::cout << "8"; }
 	else { SetConsoleTextAttribute(hConsole, 7);  std::cout << "-"; }
+
 	SetConsoleTextAttribute(hConsole, 7);
+}
+
+bool moveDown(const std::vector<std::vector<EInputs>>& inputBuffers, const Move& move)
+{
+	for (size_t i = 0; i < inputBuffers.size(); i++)
+	{
+		// If we are out of the move input sequence without a fail, the move is succeeded.
+		if (i >= move.InputSequence.size()) { return true; }
+		
+		for (EInputs sequenceInput : move.InputSequence[move.InputSequence.size() - 1 - i])
+		{
+			// If the input is not pressed, the move is failed.
+			if (!std::count(inputBuffers[i].begin(), inputBuffers[i].end(), sequenceInput))
+			{
+				return false;
+			}
+		}
+	}
+
+	return false;
 }
 
 int main(int argc, char* argv[])
@@ -71,6 +99,10 @@ int main(int argc, char* argv[])
 	{
 		return -1;
 	}
+
+	Move quaterCircleSlash;
+	quaterCircleSlash.InputSequence = { { EInputs::DPad2 }, { EInputs::DPad3 }, { EInputs::DPad6, EInputs::Slash } };
+	//quaterCircleSlash.InputSequence.push_back({ EInputs::DPad6, EInputs::Slash });
 
 	HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
 	SetConsoleTextAttribute(hConsole, 7);
@@ -149,11 +181,12 @@ int main(int argc, char* argv[])
 			}
 
 			// Optimal quater circle forward
-			if (std::count(inputBuffers[0].begin(), inputBuffers[0].end(), EInputs::Slash) &&
+			/*if (std::count(inputBuffers[0].begin(), inputBuffers[0].end(), EInputs::Slash) &&
 				std::count(inputBuffers[0].begin(), inputBuffers[0].end(), EInputs::DPad6) &&
 				std::count(inputBuffers[1].begin(), inputBuffers[1].end(), EInputs::DPad3) &&
 				std::count(inputBuffers[2].begin(), inputBuffers[2].end(), EInputs::DPad2) &&
-				std::count(inputBuffers[3].begin(), inputBuffers[3].end(), EInputs::DPad5)) { glClearColor(0.0f, 1.0f, 0.0f, 1.0f); }
+				std::count(inputBuffers[3].begin(), inputBuffers[3].end(), EInputs::DPad5)) { glClearColor(0.0f, 1.0f, 0.0f, 1.0f); }*/
+			if (moveDown(inputBuffers, quaterCircleSlash)) { glClearColor(0.0f, 1.0f, 0.0f, 1.0f); }
 			else { glClearColor(0.0f, 0.0f, 0.0f, 1.0f); }
 			glClear(GL_COLOR_BUFFER_BIT); 
 			glfwSwapBuffers(window);
